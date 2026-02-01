@@ -1,0 +1,68 @@
+{
+  "name": "MedicalRecord",
+  "type": "object",
+  "properties": {
+    "patient_id": {
+      "type": "string"
+    },
+    "record_type": {
+      "type": "string",
+      "enum": [
+        "anamnese",
+        "evolucao",
+        "avaliacao",
+        "encaminhamento",
+        "atestado",
+        "relatorio"
+      ]
+    },
+    "title": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "session_id": {
+      "type": "string"
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "is_confidential": {
+      "type": "boolean",
+      "default": true
+    },
+    "diagnosis_cid": {
+      "type": "string"
+    },
+    "treatment_plan": {
+      "type": "string"
+    },
+    "medications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "dosage": {
+            "type": "string"
+          },
+          "frequency": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "patient_id",
+    "record_type",
+    "title",
+    "content"
+  ]
+}

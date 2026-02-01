@@ -1,0 +1,115 @@
+{
+  "name": "Session",
+  "type": "object",
+  "properties": {
+    "patient_id": {
+      "type": "string",
+      "description": "ID do paciente"
+    },
+    "patient_name": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "start_time": {
+      "type": "string"
+    },
+    "end_time": {
+      "type": "string"
+    },
+    "duration_minutes": {
+      "type": "number",
+      "default": 50
+    },
+    "session_type": {
+      "type": "string",
+      "enum": [
+        "individual",
+        "casal",
+        "familia",
+        "grupo",
+        "online"
+      ],
+      "default": "individual"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "agendada",
+        "confirmada",
+        "em_andamento",
+        "concluida",
+        "cancelada",
+        "falta"
+      ],
+      "default": "agendada"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas da sess\u00e3o"
+    },
+    "clinical_notes": {
+      "type": "string",
+      "description": "Anota\u00e7\u00f5es cl\u00ednicas confidenciais"
+    },
+    "sentiment_analysis": {
+      "type": "object",
+      "properties": {
+        "overall_sentiment": {
+          "type": "string",
+          "enum": [
+            "muito_negativo",
+            "negativo",
+            "neutro",
+            "positivo",
+            "muito_positivo"
+          ]
+        },
+        "emotions_detected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "key_themes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "risk_indicators": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "price": {
+      "type": "number"
+    },
+    "payment_status": {
+      "type": "string",
+      "enum": [
+        "pendente",
+        "pago",
+        "parcial",
+        "isento"
+      ],
+      "default": "pendente"
+    },
+    "recurrence_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "patient_id",
+    "date",
+    "start_time"
+  ]
+}

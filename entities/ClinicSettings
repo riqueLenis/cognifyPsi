@@ -1,0 +1,149 @@
+{
+  "name": "ClinicSettings",
+  "type": "object",
+  "properties": {
+    "clinic_name": {
+      "type": "string"
+    },
+    "psychologist_name": {
+      "type": "string"
+    },
+    "crp_number": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string"
+    },
+    "logo_url": {
+      "type": "string"
+    },
+    "working_hours": {
+      "type": "object",
+      "properties": {
+        "monday": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string"
+            },
+            "end": {
+              "type": "string"
+            },
+            "active": {
+              "type": "boolean"
+            }
+          }
+        },
+        "tuesday": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string"
+            },
+            "end": {
+              "type": "string"
+            },
+            "active": {
+              "type": "boolean"
+            }
+          }
+        },
+        "wednesday": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string"
+            },
+            "end": {
+              "type": "string"
+            },
+            "active": {
+              "type": "boolean"
+            }
+          }
+        },
+        "thursday": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string"
+            },
+            "end": {
+              "type": "string"
+            },
+            "active": {
+              "type": "boolean"
+            }
+          }
+        },
+        "friday": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string"
+            },
+            "end": {
+              "type": "string"
+            },
+            "active": {
+              "type": "boolean"
+            }
+          }
+        },
+        "saturday": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string"
+            },
+            "end": {
+              "type": "string"
+            },
+            "active": {
+              "type": "boolean"
+            }
+          }
+        },
+        "sunday": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string"
+            },
+            "end": {
+              "type": "string"
+            },
+            "active": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "session_duration": {
+      "type": "number",
+      "default": 50
+    },
+    "session_price": {
+      "type": "number"
+    },
+    "cancellation_policy_hours": {
+      "type": "number",
+      "default": 24
+    },
+    "lgpd_policy_text": {
+      "type": "string"
+    },
+    "reminder_hours_before": {
+      "type": "number",
+      "default": 24
+    }
+  },
+  "required": []
+}
