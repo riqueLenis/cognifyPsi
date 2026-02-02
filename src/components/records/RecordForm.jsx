@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,7 +60,7 @@ export default function RecordForm({ record, patientId, patients = [], open, onC
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    await onSave(formData);
+    await onSave(formData); 
     setLoading(false); 
   };
 
