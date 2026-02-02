@@ -22,9 +22,9 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
-  const today = new Date().toISOString().split('T')[0];
-  const monthStart = startOfMonth(new Date()).toISOString().split('T')[0];
-  const monthEnd = endOfMonth(new Date()).toISOString().split('T')[0];
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+  const monthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
 
   const { data: patients = [] } = useQuery({
     queryKey: ['patients'],

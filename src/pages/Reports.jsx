@@ -40,6 +40,20 @@ import { ptBR } from 'date-fns/locale';
 import StatsCard from '../components/ui/StatsCard';
 
 export default function Reports() {
+  const parseDateOnlyLocal = (value) => {
+    if (!value) return null;
+    const s = String(value);
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) {
+      const year = Number(m[1]);
+      const month = Number(m[2]);
+      const day = Number(m[3]);
+      if (!year || !month || !day) return null;
+      return new Date(year, month - 1, day);
+    }
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
   const [period, setPeriod] = useState('6');
 
   const { data: patients = [] } = useQuery({
@@ -67,7 +81,7 @@ export default function Reports() {
     const monthStart = startOfMonth(month);
     const monthEnd = endOfMonth(month);
     const monthSessions = sessions.filter(s => {
-      const sessionDate = new Date(s.date);
+      const sessionDate = parseDateOnlyLocal(s.date);
       return sessionDate >= monthStart && sessionDate <= monthEnd;
     });
 
@@ -84,7 +98,7 @@ export default function Reports() {
     const monthStart = startOfMonth(month);
     const monthEnd = endOfMonth(month);
     const monthFinancials = financials.filter(f => {
-      const dueDate = f.due_date ? new Date(f.due_date) : null;
+      const dueDate = parseDateOnlyLocal(f.due_date);
       return dueDate && dueDate >= monthStart && dueDate <= monthEnd;
     });
 

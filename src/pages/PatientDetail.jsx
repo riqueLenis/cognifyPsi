@@ -23,6 +23,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { ensureFinancialForSession } from '@/lib/financialSync';
 import PatientForm from '../components/patients/PatientForm';
 import SessionForm from '../components/schedule/SessionForm';
 import RecordForm from '../components/records/RecordForm';
@@ -429,7 +431,17 @@ export default function PatientDetail() {
         patients={allPatients}
         open={showSessionForm}
         onClose={() => setShowSessionForm(false)}
-        onSave={(data) => createSessionMutation.mutateAsync(data)}
+        onSave={async (data) => {
+          const saved = await createSessionMutation.mutateAsync(data);
+          try {
+            await ensureFinancialForSession(base44, saved);
+            queryClient.invalidateQueries({ queryKey: ['financials'] });
+            queryClient.invalidateQueries({ queryKey: ['patient-financials', patientId] });
+          } catch {
+            toast.warning('Sessão salva, mas o Financeiro não atualizou automaticamente.');
+          }
+          return saved;
+        }}
       />
 
       <RecordForm

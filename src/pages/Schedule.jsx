@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -25,6 +25,7 @@ import { toast } from 'sonner';
 import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { ensureFinancialForSession } from '@/lib/financialSync';
 import SessionCard from '../components/schedule/SessionCard';
 import SessionForm from '../components/schedule/SessionForm';
 
@@ -37,6 +38,8 @@ export default function Schedule() {
 
   const queryClient = useQueryClient();
 
+  const syncedSessionIdsRef = useRef(new Set());
+
   const { data: patients = [] } = useQuery({
     queryKey: ['patients'],
     queryFn: () => base44.entities.Patient.filter({ status: 'ativo' }),
@@ -47,6 +50,31 @@ export default function Schedule() {
     queryFn: () => base44.entities.Session.list('-date'),
   });
 
+  // Backfill: garante que sessões antigas gerem lançamentos no Financeiro.
+  useEffect(() => {
+    if (!Array.isArray(sessions) || sessions.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      for (const session of sessions) {
+        if (cancelled) return;
+        if (!session?.id) continue;
+        if (syncedSessionIdsRef.current.has(session.id)) continue;
+        syncedSessionIdsRef.current.add(session.id);
+
+        try {
+          await ensureFinancialForSession(base44, session);
+        } catch {
+          // Não bloqueia a tela de agenda se o financeiro falhar.
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessions]);
+
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Session.create(data),
     onSuccess: () => {
@@ -56,6 +84,15 @@ export default function Schedule() {
     },
   });
 
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => base44.entities.Session.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['financials'] });
+      toast.success('Sessão excluída com sucesso!');
+    },
+  });
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Session.update(id, data),
     onSuccess: () => {
@@ -67,11 +104,18 @@ export default function Schedule() {
   });
 
   const handleSave = async (data) => {
-    if (editingSession) {
-      await updateMutation.mutateAsync({ id: editingSession.id, data });
-    } else {
-      await createMutation.mutateAsync(data);
+    const saved = editingSession
+      ? await updateMutation.mutateAsync({ id: editingSession.id, data })
+      : await createMutation.mutateAsync(data);
+
+    try {
+      await ensureFinancialForSession(base44, saved);
+      queryClient.invalidateQueries({ queryKey: ['financials'] });
+    } catch {
+      toast.warning('Sessão salva, mas o Financeiro não atualizou automaticamente.');
     }
+
+    return saved;
   };
 
   const handleStatusChange = async (session, newStatus) => {
@@ -84,6 +128,20 @@ export default function Schedule() {
   const handleEdit = (session) => {
     setEditingSession(session);
     setShowForm(true);
+  };
+
+  const handleDelete = async (session) => {
+    if (!session?.id) return;
+
+    try {
+      const linked = await base44.entities.Financial.filter({ session_id: session.id });
+      if (Array.isArray(linked) && linked.length) {
+        await Promise.all(linked.map((t) => t?.id ? base44.entities.Financial.delete(t.id) : Promise.resolve()));
+      }
+    } catch {
+    }
+
+    await deleteMutation.mutateAsync(session.id);
   };
 
   // Get week days
@@ -254,6 +312,7 @@ export default function Schedule() {
                   session={session}
                   onStatusChange={handleStatusChange}
                   onEdit={handleEdit}
+                  onDelete={handleDelete}
                 />
               ))}
             </div>

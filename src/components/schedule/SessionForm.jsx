@@ -61,7 +61,7 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
       setFormData({
         patient_id: '',
         patient_name: '',
-        date: new Date().toISOString().split('T')[0],
+        date: format(new Date(), 'yyyy-MM-dd'),
         start_time: '',
         end_time: '',
         duration_minutes: 50,

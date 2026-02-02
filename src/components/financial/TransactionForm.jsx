@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
+import { format } from 'date-fns';
 
 export default function TransactionForm({ transaction, patients, open, onClose, onSave }) {
   const [formData, setFormData] = useState({
@@ -59,7 +60,7 @@ export default function TransactionForm({ transaction, patients, open, onClose, 
         amount: '',
         payment_method: '',
         status: 'pendente',
-        due_date: new Date().toISOString().split('T')[0],
+        due_date: format(new Date(), 'yyyy-MM-dd'),
         payment_date: '',
         notes: '',
       });
