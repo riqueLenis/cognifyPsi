@@ -5,6 +5,7 @@ import sessionsRoutes from './sessions.js';
 import medicalRecordsRoutes from './medical-records.js';
 import financialRoutes from './financial.js';
 import clinicSettingsRoutes from './clinic-settings.js';
+import integrationsRoutes from './integrations.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -20,5 +21,6 @@ router.use('/sessions', sessionsRoutes);
 router.use('/medical-records', medicalRecordsRoutes);
 router.use('/financial', financialRoutes);
 router.use('/clinic-settings', clinicSettingsRoutes);
+router.use('/integrations', integrationsRoutes); 
 
 export default router;

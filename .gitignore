@@ -2,6 +2,10 @@
 .env
 .env.*
 
+# backend env (defense in depth)
+backend/.env
+backend/.env.*
+
 # Logs
 logs
 *.log
