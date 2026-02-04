@@ -1,5 +1,7 @@
 import express from 'express';
 import { getPrisma } from '../db.js';
+// WhatsApp integration temporarily disabled by request.
+// import { maybeSendSessionWhatsAppConfirmation } from '../services/whatsapp.js';
 
 const router = express.Router();
 const prisma = getPrisma();
@@ -46,6 +48,15 @@ router.post('/', async (req, res, next) => {
     if (!body.date) return res.status(400).json({ error: 'date_required' });
 
     const created = await prisma.session.create({ data: { data: JSON.stringify(body) } });
+
+    // WhatsApp integration temporarily disabled by request.
+    // setImmediate(() => {
+    //   maybeSendSessionWhatsAppConfirmation({ prisma, sessionId: created.id, session: body }).catch((err) => {
+    //     // eslint-disable-next-line no-console
+    //     console.warn('[whatsapp] failed to send confirmation', err?.message || err);
+    //   });
+    // });
+
     return res.status(201).json({ id: created.id, ...body });
   } catch (err) {
     return next(err);
@@ -59,6 +70,15 @@ router.put('/:id', async (req, res, next) => {
     const current = safeParse(existing.data) || {};
     const merged = normalize({ ...current, ...(req.body || {}) });
     await prisma.session.update({ where: { id: req.params.id }, data: { data: JSON.stringify(merged) } });
+
+    // WhatsApp integration temporarily disabled by request.
+    // setImmediate(() => {
+    //   maybeSendSessionWhatsAppConfirmation({ prisma, sessionId: req.params.id, session: merged }).catch((err) => {
+    //     // eslint-disable-next-line no-console
+    //     console.warn('[whatsapp] failed to send confirmation', err?.message || err);
+    //   });
+    // });
+
     return res.json({ id: req.params.id, ...merged });
   } catch (err) {
     return next(err);
