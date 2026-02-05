@@ -1,0 +1,9 @@
+{
+  "name": "Cognify Psicologia",
+  "short_name": "Cognify",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111827",
+  "description": "Plataforma para gestão clínica e acompanhamento terapêutico."
+}
