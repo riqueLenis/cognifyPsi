@@ -1,5 +1,19 @@
 const TOKEN_KEY = "menteclara_token";
 
+const getApiBaseUrl = () => {
+  // In local dev we rely on Vite proxy for /api.
+  // In production (e.g. Vercel), set VITE_API_BASE_URL to your backend origin.
+  try {
+    /** @type {any} */
+    const meta = import.meta;
+    const value = meta && meta.env ? meta.env.VITE_API_BASE_URL : undefined;
+    if (!value) return "";
+    return String(value).replace(/\/+$/, "");
+  } catch {
+    return "";
+  }
+};
+
 /**
  * @typedef {Object} RequestArgs
  * @property {'GET'|'POST'|'PUT'|'DELETE'} method
@@ -44,7 +58,9 @@ const toQueryString = (params = {}) => {
 /** @param {RequestArgs} args */
 const request = async ({ method, path, body, query }) => {
   const token = getToken();
-  const res = await fetch(`/api${path}${toQueryString(query)}`, {
+  const apiBaseUrl = getApiBaseUrl();
+  const url = `${apiBaseUrl}/api${path}${toQueryString(query)}`;
+  const res = await fetch(url, {
     method,
     headers: {
       ...(body ? { "Content-Type": "application/json" } : {}),
