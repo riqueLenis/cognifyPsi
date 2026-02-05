@@ -66,8 +66,6 @@ const getApiOrigin = () => {
   if (fromQuery) return fromQuery;
   const stored = getStoredApiBaseUrl();
   if (stored) return stored;
-  // Vercel deployments (production or preview) should never call their own `/api/*`
-  // because this project does not implement Vercel API routes.
   if (isVercelHostname()) return DEFAULT_RAILWAY_API_ORIGIN;
   return "";
 };
