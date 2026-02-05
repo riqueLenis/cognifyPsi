@@ -11,29 +11,10 @@ export function createApp() {
 
   app.use(
     cors({
-      origin: (origin, callback) => {
-        if (!origin) return callback(null, true);
-
-        const allowedOrigins = (process.env.CORS_ORIGIN || "")
-          .split(",")
-          .map((o) => o.trim().replace(/\/+$/, ""));
-
-        const normalized = origin.replace(/\/+$/, "");
-
-        if (allowedOrigins.includes(normalized)) {
-          return callback(null, true);
-        }
-
-        console.error("CORS bloqueado para:", origin);
-        return callback(new Error("Not allowed by CORS"));
-      },
+      origin: true,
       credentials: true,
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
     }),
   );
-
-  // Preflight (OPTIONS)
   app.options("*", cors());
 
   app.use(express.json({ limit: "1mb" }));
