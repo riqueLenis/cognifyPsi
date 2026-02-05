@@ -1,4 +1,6 @@
 const TOKEN_KEY = "menteclara_token";
+const API_BASE_URL_STORAGE_KEY = "menteclara_api_base_url";
+const DEFAULT_RAILWAY_API_ORIGIN = "https://cognifypsi-production.up.railway.app";
 
 const getApiBaseUrl = () => {
   // In local dev we rely on Vite proxy for /api.
@@ -22,6 +24,49 @@ const isProd = () => {
   } catch {
     return false;
   }
+};
+
+const getStoredApiBaseUrl = () => {
+  if (typeof window === "undefined") return "";
+  try {
+    const raw = window.localStorage.getItem(API_BASE_URL_STORAGE_KEY);
+    return raw ? String(raw).replace(/\/+$/, "") : "";
+  } catch {
+    return "";
+  }
+};
+
+const captureApiBaseUrlFromQuery = () => {
+  if (typeof window === "undefined") return "";
+  try {
+    const url = new URL(window.location.href);
+    const value = url.searchParams.get("api_base_url");
+    if (!value) return "";
+    const normalized = String(value).replace(/\/+$/, "");
+    window.localStorage.setItem(API_BASE_URL_STORAGE_KEY, normalized);
+    url.searchParams.delete("api_base_url");
+    window.history.replaceState({}, document.title, url.toString());
+    return normalized;
+  } catch {
+    return "";
+  }
+};
+
+const isVercelHostname = () => {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname || "";
+  return host.endsWith(".vercel.app");
+};
+
+const getApiOrigin = () => {
+  const envValue = getApiBaseUrl();
+  if (envValue) return envValue;
+  const fromQuery = captureApiBaseUrlFromQuery();
+  if (fromQuery) return fromQuery;
+  const stored = getStoredApiBaseUrl();
+  if (stored) return stored;
+  if (isProd() && isVercelHostname()) return DEFAULT_RAILWAY_API_ORIGIN;
+  return "";
 };
 
 /**
@@ -68,7 +113,7 @@ const toQueryString = (params = {}) => {
 /** @param {RequestArgs} args */
 const request = async ({ method, path, body, query }) => {
   const token = getToken();
-  const apiBaseUrl = getApiBaseUrl();
+  const apiBaseUrl = getApiOrigin();
   const url = `${apiBaseUrl}/api${path}${toQueryString(query)}`;
   const res = await fetch(url, {
     method,
@@ -85,9 +130,9 @@ const request = async ({ method, path, body, query }) => {
     : await res.text().catch(() => null);
 
   if (!res.ok) {
-    if (res.status === 404 && !apiBaseUrl && isProd()) {
+    if (res.status === 404 && !getApiBaseUrl() && isProd() && isVercelHostname()) {
       throw new HttpError(
-        "API não encontrada. Em produção, configure VITE_API_BASE_URL no Vercel para apontar para o backend (Railway).",
+        "API não encontrada. Configure VITE_API_BASE_URL no Vercel (ou passe ?api_base_url=... uma vez) para apontar para o backend.",
         res.status,
         data,
       );
