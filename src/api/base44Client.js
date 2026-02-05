@@ -14,6 +14,16 @@ const getApiBaseUrl = () => {
   }
 };
 
+const isProd = () => {
+  try {
+    /** @type {any} */
+    const meta = import.meta;
+    return Boolean(meta && meta.env && meta.env.PROD);
+  } catch {
+    return false;
+  }
+};
+
 /**
  * @typedef {Object} RequestArgs
  * @property {'GET'|'POST'|'PUT'|'DELETE'} method
@@ -75,6 +85,13 @@ const request = async ({ method, path, body, query }) => {
     : await res.text().catch(() => null);
 
   if (!res.ok) {
+    if (res.status === 404 && !apiBaseUrl && isProd()) {
+      throw new HttpError(
+        "API não encontrada. Em produção, configure VITE_API_BASE_URL no Vercel para apontar para o backend (Railway).",
+        res.status,
+        data,
+      );
+    }
     throw new HttpError(
       (data && data.error) || res.statusText,
       res.status,
