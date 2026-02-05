@@ -7,6 +7,11 @@ import { errorHandler } from "./middleware/error-handler.js";
 export function createApp() {
   const app = express();
 
+  app.use((req, res, next) => {
+    console.log("chegou essa bosta de requisição:", req.method, req.url);
+    next();
+  });
+
   app.use(morgan("dev"));
 
   app.use(
