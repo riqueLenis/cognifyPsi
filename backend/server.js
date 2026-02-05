@@ -16,8 +16,8 @@ if (!process.env.JWT_SECRET) {
 const port = Number(process.env.PORT || 4000);
 const app = createApp();
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
 	// eslint-disable-next-line no-console
-	console.log(`[backend] listening on http://localhost:${port}`);
+	console.log(`[backend] listening on 0.0.0.0:${port}`);
 });
 
