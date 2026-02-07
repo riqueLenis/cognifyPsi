@@ -1,7 +1,5 @@
 const TOKEN_KEY = "menteclara_token";
 const API_BASE_URL_STORAGE_KEY = "menteclara_api_base_url";
-const DEFAULT_RAILWAY_API_ORIGIN =
-  "https://cognifypsi-production.up.railway.app";
 
 const getApiBaseUrl = () => {
   // In local dev we rely on Vite proxy for /api.
@@ -66,7 +64,7 @@ const getApiOrigin = () => {
   if (fromQuery) return fromQuery;
   const stored = getStoredApiBaseUrl();
   if (stored) return stored;
-  if (isVercelHostname()) return DEFAULT_RAILWAY_API_ORIGIN;
+  if (isVercelHostname()) return "";
   return "";
 };
 
@@ -133,7 +131,7 @@ const request = async ({ method, path, body, query }) => {
   if (!res.ok) {
     if (res.status === 404 && !getApiBaseUrl() && isVercelHostname()) {
       throw new HttpError(
-        "API não encontrada. Configure VITE_API_BASE_URL no Vercel (ou passe ?api_base_url=... uma vez) para apontar para o backend.",
+        "API não encontrada. No Vercel, confirme que `vercel.json` (rewrites /api -> Railway) foi aplicado no deploy; ou configure VITE_API_BASE_URL.",
         res.status,
         data,
       );
