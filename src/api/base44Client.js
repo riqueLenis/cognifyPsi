@@ -109,6 +109,16 @@ const toQueryString = (params = {}) => {
   return qs ? `?${qs}` : "";
 };
 
+const normalizeListResponse = (data) => {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === "object") {
+    if (Array.isArray(data.items)) return data.items;
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data.results)) return data.results;
+  }
+  return [];
+};
+
 /** @param {RequestArgs} args */
 const request = async ({ method, path, body, query }) => {
   const token = getToken();
@@ -147,9 +157,14 @@ const request = async ({ method, path, body, query }) => {
 
 const makeEntity = (resource) => {
   return {
-    list: async (_order) => request({ method: "GET", path: `/${resource}` }),
+    list: async (_order) =>
+      normalizeListResponse(
+        await request({ method: "GET", path: `/${resource}` }),
+      ),
     filter: async (criteria = {}) =>
-      request({ method: "GET", path: `/${resource}`, query: criteria }),
+      normalizeListResponse(
+        await request({ method: "GET", path: `/${resource}`, query: criteria }),
+      ),
     create: async (data) =>
       request({ method: "POST", path: `/${resource}`, body: data }),
     update: async (id, data) =>
