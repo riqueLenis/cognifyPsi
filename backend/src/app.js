@@ -14,38 +14,13 @@ export function createApp() {
     .filter(Boolean)
     .map((s) => s.replace(/\/+$/, ""));
 
-  const normalizeOrigin = (origin) => String(origin || "").replace(/\/+$/, "");
-  const isAllowedOrigin = (origin) => {
-    if (!origin) return true;
-    if (allowedOrigins.length === 0) return true;
-    return allowedOrigins.includes(normalizeOrigin(origin));
-  };
-
-  // Explicit preflight handler (prevents 405 on OPTIONS)
-  app.use((req, res, next) => {
-    if (req.method !== "OPTIONS") return next();
-
-    const origin = req.headers.origin;
-    if (origin && isAllowedOrigin(origin)) {
-      res.header("Access-Control-Allow-Origin", normalizeOrigin(origin));
-      res.header("Vary", "Origin");
-      res.header("Access-Control-Allow-Credentials", "true");
-    }
-
-    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-    res.header(
-      "Access-Control-Allow-Headers",
-      req.headers["access-control-request-headers"] ||
-        "Content-Type,Authorization",
-    );
-
-    return res.sendStatus(204);
-  });
-
   const corsOptions = {
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      return callback(null, isAllowedOrigin(origin));
+      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin.replace(/\/+$/, ""))) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -67,5 +42,8 @@ export function createApp() {
   app.use("/api", apiRoutes);
 
   app.use(errorHandler);
+
+  console.log("CORS allowed origins:", allowedOrigins.length === 0 ? "all (*)" : allowedOrigins.join(", "));
+
   return app;
 }
