@@ -8,6 +8,8 @@ export function createApp() {
   const app = express();
   app.use(morgan("dev"));
 
+  const isDev = (process.env.NODE_ENV || "development") !== "production";
+
   const allowedOrigins = (process.env.CORS_ORIGIN || "")
     .split(",")
     .map((s) => s.trim())
@@ -16,11 +18,16 @@ export function createApp() {
 
   const corsOptions = {
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin.replace(/\/+$/, ""))) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
+      // In local dev, let Vite/localhost work without friction.
+      if (isDev) return callback(null, true);
+
+      const normalized = String(origin || "").replace(/\/+$/, "");
+      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(normalized)) {
+        return callback(null, true);
       }
+
+      // Do not throw (would become 500). Just reject the origin.
+      return callback(null, false);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -28,6 +35,7 @@ export function createApp() {
   };
 
   app.use(cors(corsOptions));
+  app.options("*", cors(corsOptions));
 
   app.use(express.json({ limit: "1mb" }));
 

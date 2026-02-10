@@ -147,11 +147,11 @@ export default function Layout({ children, currentPageName }) {
                 <DropdownMenuTrigger asChild>
                   <button className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center text-white font-medium">
-                      {user.full_name?.[0] || user.email?.[0]?.toUpperCase()}
+                      {user.fullName?.[0] || user.email?.[0]?.toUpperCase()}
                     </div>
                     <div className="flex-1 text-left">
                       <p className="text-sm font-medium text-slate-700 truncate">
-                        {user.full_name || "Psicólogo"}
+                        {user.fullName || "Psicólogo"}
                       </p>
                       <p className="text-xs text-slate-400 truncate">
                         {user.email}

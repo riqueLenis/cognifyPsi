@@ -14,6 +14,21 @@ const registerSchema = z.object({
   fullName: z.string().min(1).optional(),
 });
 
+const emailExistsSchema = z.object({
+  email: z.string().email(),
+});
+
+router.get('/exists', async (req, res, next) => {
+  try {
+    const query = emailExistsSchema.parse(req.query);
+    const existing = await prisma.user.findUnique({ where: { email: query.email } });
+    return res.json({ exists: Boolean(existing) });
+  } catch (err) {
+    if (err?.name === 'ZodError') return res.status(400).json({ error: 'invalid_query', details: err.issues });
+    return next(err);
+  }
+});
+
 router.post('/register', async (req, res, next) => {
   try {
     const body = registerSchema.parse(req.body);

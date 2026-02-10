@@ -1,9 +1,8 @@
 const TOKEN_KEY = "menteclara_token";
-const API_BASE_URL_STORAGE_KEY = "menteclara_api_base_url";
 
 const getApiBaseUrl = () => {
   // In local dev we rely on Vite proxy for /api.
-  // In production (e.g. Vercel), set VITE_API_BASE_URL to your backend origin.
+  // In production, you can set VITE_API_BASE_URL to your backend origin.
   try {
     /** @type {any} */
     const meta = import.meta;
@@ -15,58 +14,7 @@ const getApiBaseUrl = () => {
   }
 };
 
-const isProd = () => {
-  try {
-    /** @type {any} */
-    const meta = import.meta;
-    return Boolean(meta && meta.env && meta.env.PROD);
-  } catch {
-    return false;
-  }
-};
-
-const getStoredApiBaseUrl = () => {
-  if (typeof window === "undefined") return "";
-  try {
-    const raw = window.localStorage.getItem(API_BASE_URL_STORAGE_KEY);
-    return raw ? String(raw).replace(/\/+$/, "") : "";
-  } catch {
-    return "";
-  }
-};
-
-const captureApiBaseUrlFromQuery = () => {
-  if (typeof window === "undefined") return "";
-  try {
-    const url = new URL(window.location.href);
-    const value = url.searchParams.get("api_base_url");
-    if (!value) return "";
-    const normalized = String(value).replace(/\/+$/, "");
-    window.localStorage.setItem(API_BASE_URL_STORAGE_KEY, normalized);
-    url.searchParams.delete("api_base_url");
-    window.history.replaceState({}, document.title, url.toString());
-    return normalized;
-  } catch {
-    return "";
-  }
-};
-
-const isVercelHostname = () => {
-  if (typeof window === "undefined") return false;
-  const host = window.location.hostname || "";
-  return host.endsWith(".vercel.app");
-};
-
-const getApiOrigin = () => {
-  const envValue = getApiBaseUrl();
-  if (envValue) return envValue;
-  const fromQuery = captureApiBaseUrlFromQuery();
-  if (fromQuery) return fromQuery;
-  const stored = getStoredApiBaseUrl();
-  if (stored) return stored;
-  if (isVercelHostname()) return "";
-  return "";
-};
+const getApiOrigin = () => getApiBaseUrl();
 
 /**
  * @typedef {Object} RequestArgs
@@ -139,13 +87,6 @@ const request = async ({ method, path, body, query }) => {
     : await res.text().catch(() => null);
 
   if (!res.ok) {
-    if (res.status === 404 && !getApiBaseUrl() && isVercelHostname()) {
-      throw new HttpError(
-        "API não encontrada. No Vercel, confirme que `vercel.json` (rewrites /api -> Railway) foi aplicado no deploy; ou configure VITE_API_BASE_URL.",
-        res.status,
-        data,
-      );
-    }
     throw new HttpError(
       (data && data.error) || res.statusText,
       res.status,
@@ -272,6 +213,13 @@ export const base44 = {
   integrations,
   auth: {
     integrations,
+    async emailExists(email) {
+      return request({
+        method: "GET",
+        path: "/auth/exists",
+        query: { email },
+      });
+    },
     async login(email, password) {
       const res = await request({
         method: "POST",
