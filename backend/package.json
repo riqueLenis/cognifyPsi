@@ -5,12 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "prisma db push --skip-generate && node server.js",
+    "start": "prisma migrate deploy && node server.js",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
-    "prisma:migrate": "prisma db push",
-    "prisma:deploy": "prisma db push",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
