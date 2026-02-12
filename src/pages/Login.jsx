@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { AlertCircle, Eye, EyeOff, Loader2, Lock, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useAuth } from '@/lib/AuthContext';
 
 // `checkJs: true` + components built in plain JS can make TS infer `{}` props for `forwardRef`.
 // Casting here keeps the login page clean without changing the UI library files.
@@ -36,6 +37,7 @@ const registerSchema = z.object({
 export default function Login() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { checkAppState } = useAuth();
   const [mode, setMode] = useState('login');
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: '', password: '', fullName: '' });
@@ -58,6 +60,8 @@ export default function Login() {
       if (mode === 'login') {
         const body = loginSchema.parse({ email: form.email, password: form.password });
         await base44.auth.login(body.email, body.password);
+        // Ensure the auth state is refreshed before navigating to protected routes.
+        await checkAppState();
         toast.success('Login realizado!');
         navigate(from, { replace: true });
       } else {
@@ -65,6 +69,7 @@ export default function Login() {
         await base44.auth.register(body.email, body.password, body.fullName);
         // Confirm it worked by logging in right away (also avoids confusion)
         await base44.auth.login(body.email, body.password);
+        await checkAppState();
         toast.success('Conta criada e login realizado!');
         navigate(from, { replace: true });
       }
