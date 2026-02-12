@@ -18,10 +18,15 @@ const emailExistsSchema = z.object({
   email: z.string().email(),
 });
 
+const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+
 router.get('/exists', async (req, res, next) => {
   try {
     const query = emailExistsSchema.parse(req.query);
-    const existing = await prisma.user.findUnique({ where: { email: query.email } });
+    const email = normalizeEmail(query.email);
+    const existing = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+    });
     return res.json({ exists: Boolean(existing) });
   } catch (err) {
     if (err?.name === 'ZodError') return res.status(400).json({ error: 'invalid_query', details: err.issues });
@@ -32,13 +37,16 @@ router.get('/exists', async (req, res, next) => {
 router.post('/register', async (req, res, next) => {
   try {
     const body = registerSchema.parse(req.body);
-    const existing = await prisma.user.findUnique({ where: { email: body.email } });
+    const email = normalizeEmail(body.email);
+    const existing = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+    });
     if (existing) return res.status(409).json({ error: 'email_already_exists' });
 
     const passwordHash = await bcrypt.hash(body.password, 10);
     const user = await prisma.user.create({
       data: {
-        email: body.email,
+        email,
         fullName: body.fullName,
         passwordHash,
       },
@@ -60,7 +68,10 @@ const loginSchema = z.object({
 router.post('/login', async (req, res, next) => {
   try {
     const body = loginSchema.parse(req.body);
-    const user = await prisma.user.findUnique({ where: { email: body.email } });
+    const email = normalizeEmail(body.email);
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+    });
     if (!user) return res.status(401).json({ error: 'invalid_credentials' });
 
     const ok = await bcrypt.compare(body.password, user.passwordHash);
