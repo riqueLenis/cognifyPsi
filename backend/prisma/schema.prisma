@@ -16,49 +16,76 @@ model User {
   role         String   @default("CLINICIAN")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  clinicSettings ClinicSettings[]
+  patients       Patient[]
+  sessions       Session[]
+  medicalRecords MedicalRecord[]
+  transactions   FinancialTransaction[]
 }
 
 // Schema-less entities to match the existing frontend payloads quickly.
 // We store the original object as a JSON string in `data`.
 model ClinicSettings {
   id        String   @id @default(cuid())
+  ownerId   String?
   data      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  owner User? @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
 }
 
 model Patient {
   id        String   @id @default(cuid())
+  ownerId   String?
   data      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  owner User? @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
   @@index([createdAt])
+  @@index([ownerId])
 }
 
 model Session {
   id        String   @id @default(cuid())
+  ownerId   String?
   data      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  owner User? @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
   @@index([createdAt])
+  @@index([ownerId])
 }
 
 model MedicalRecord {
   id        String   @id @default(cuid())
+  ownerId   String?
   data      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  owner User? @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
   @@index([createdAt])
+  @@index([ownerId])
 }
 
 model FinancialTransaction {
   id        String   @id @default(cuid())
+  ownerId   String?
   data      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  owner User? @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
   @@index([createdAt])
+  @@index([ownerId])
 }

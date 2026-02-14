@@ -4,6 +4,8 @@ import { getPrisma } from '../db.js';
 const router = express.Router();
 const prisma = getPrisma();
 
+const getOwnerId = (req) => String(req.user?.sub || '');
+
 const safeParse = (value) => {
   try {
     return JSON.parse(value);
@@ -23,7 +25,11 @@ const normalize = (obj) => {
 
 router.get('/', async (req, res, next) => {
   try {
-    const all = await prisma.financialTransaction.findMany({ orderBy: { createdAt: 'desc' } });
+    const ownerId = getOwnerId(req);
+    const all = await prisma.financialTransaction.findMany({
+      where: { ownerId },
+      orderBy: { createdAt: 'desc' },
+    });
     const items = all.map((row) => ({ id: row.id, ...(safeParse(row.data) || {}) }));
 
     const query = { ...req.query };
@@ -41,13 +47,14 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
+    const ownerId = getOwnerId(req);
     const body = normalize(req.body || {});
     if (!body.type) return res.status(400).json({ error: 'type_required' });
     if (body.amount === undefined || body.amount === null || body.amount === '') {
       return res.status(400).json({ error: 'amount_required' });
     }
 
-    const created = await prisma.financialTransaction.create({ data: { data: JSON.stringify(body) } });
+    const created = await prisma.financialTransaction.create({ data: { ownerId, data: JSON.stringify(body) } });
     return res.status(201).json({ id: created.id, ...body });
   } catch (err) {
     return next(err);
@@ -56,7 +63,8 @@ router.post('/', async (req, res, next) => {
 
 router.put('/:id', async (req, res, next) => {
   try {
-    const existing = await prisma.financialTransaction.findUnique({ where: { id: req.params.id } });
+    const ownerId = getOwnerId(req);
+    const existing = await prisma.financialTransaction.findFirst({ where: { id: req.params.id, ownerId } });
     if (!existing) return res.status(404).json({ error: 'not_found' });
     const current = safeParse(existing.data) || {};
     const merged = normalize({ ...current, ...(req.body || {}) });
@@ -69,6 +77,9 @@ router.put('/:id', async (req, res, next) => {
 
 router.delete('/:id', async (req, res, next) => {
   try {
+    const ownerId = getOwnerId(req);
+    const existing = await prisma.financialTransaction.findFirst({ where: { id: req.params.id, ownerId } });
+    if (!existing) return res.status(404).json({ error: 'not_found' });
     await prisma.financialTransaction.delete({ where: { id: req.params.id } });
     return res.status(204).send();
   } catch (err) {
