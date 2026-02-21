@@ -22,6 +22,26 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
+  const normalizeAmount = (value) => {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+    if (value == null) return 0;
+
+    const raw = String(value).trim();
+    if (!raw) return 0;
+
+    // Accept "1.234,56", "1234,56", "R$ 1.234,56", etc.
+    const cleaned = raw
+      .replace(/\s/g, '')
+      .replace(/R\$/gi, '')
+      .replace(/\./g, '')
+      .replace(',', '.');
+
+    const num = Number(cleaned);
+    return Number.isFinite(num) ? num : 0;
+  };
+
   const today = format(new Date(), 'yyyy-MM-dd');
   const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
   const monthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
@@ -49,11 +69,11 @@ export default function Dashboard() {
   
   const monthRevenue = financials
     .filter(f => f.type === 'receita' && f.status === 'pago' && f.due_date >= monthStart && f.due_date <= monthEnd)
-    .reduce((sum, f) => sum + (f.amount || 0), 0);
+    .reduce((sum, f) => sum + normalizeAmount(f.amount), 0);
 
   const pendingPayments = financials
     .filter(f => f.type === 'receita' && f.status === 'pendente')
-    .reduce((sum, f) => sum + (f.amount || 0), 0);
+    .reduce((sum, f) => sum + normalizeAmount(f.amount), 0);
 
   const upcomingSessions = sessions
     .filter(s => s.date >= today && s.status !== 'cancelada' && s.status !== 'concluida')
