@@ -65,12 +65,18 @@ export const ensureFinancialForSession = async (base44, session) => {
 
   if (current?.id) {
     // Preserva campos que podem ser editados manualmente no Financeiro.
+    const keepPaid = current.status === "pago" && desired.status === "pendente";
     const merged = {
       ...current,
       ...desired,
       payment_method: current.payment_method || desired.payment_method,
       notes: current.notes || desired.notes,
     };
+
+    if (keepPaid) {
+      merged.status = current.status;
+      merged.payment_date = current.payment_date || merged.payment_date;
+    }
     return base44.entities.Financial.update(current.id, merged);
   }
 

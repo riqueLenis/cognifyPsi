@@ -22,6 +22,14 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
+  const normalizeISODate = (value) => {
+    if (!value) return '';
+    const str = String(value);
+    // Accept yyyy-mm-dd or ISO timestamps
+    if (str.includes('T')) return str.slice(0, 10);
+    return str;
+  };
+
   const normalizeAmount = (value) => {
     if (typeof value === 'number') {
       return Number.isFinite(value) ? value : 0;
@@ -68,11 +76,21 @@ export default function Dashboard() {
   const completedThisMonth = monthSessions.filter(s => s.status === 'concluida').length;
   
   const monthRevenue = financials
-    .filter(f => f.type === 'receita' && f.status === 'pago' && f.due_date >= monthStart && f.due_date <= monthEnd)
+    .filter(f => {
+      if (f.type !== 'receita' || f.status !== 'pago') return false;
+      const due = normalizeISODate(f.due_date);
+      return due >= monthStart && due <= monthEnd;
+    })
     .reduce((sum, f) => sum + normalizeAmount(f.amount), 0);
 
   const pendingPayments = financials
-    .filter(f => f.type === 'receita' && f.status === 'pendente')
+    // Conta apenas pendências vencidas (evita subir por sessões futuras sincronizadas)
+    .filter(f => {
+      if (f.type !== 'receita' || f.status !== 'pendente') return false;
+      const due = normalizeISODate(f.due_date);
+      if (!due) return false;
+      return due <= today;
+    })
     .reduce((sum, f) => sum + normalizeAmount(f.amount), 0);
 
   const upcomingSessions = sessions
