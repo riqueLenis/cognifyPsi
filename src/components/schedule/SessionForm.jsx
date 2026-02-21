@@ -21,6 +21,28 @@ import { Switch } from '@/components/ui/switch';
 import { addWeeks, addMonths, format } from 'date-fns';
 
 export default function SessionForm({ session, patients, open, onClose, onSave }) {
+  const normalizeDateForInput = (value) => {
+    if (!value) return '';
+    if (value instanceof Date) return format(value, 'yyyy-MM-dd');
+    const str = String(value);
+    // Handles ISO strings like 2026-02-20T00:00:00.000Z
+    if (str.includes('T')) return str.slice(0, 10);
+    return str;
+  };
+
+  const normalizeTimeForInput = (value) => {
+    if (!value) return '';
+    const str = String(value);
+    // Handles HH:mm:ss -> HH:mm
+    if (/^\d{2}:\d{2}:\d{2}/.test(str)) return str.slice(0, 5);
+    return str;
+  };
+
+  const getPatientIdForSave = (patientIdAsString) => {
+    const matched = (patients || []).find((p) => String(p.id) === String(patientIdAsString));
+    return matched ? matched.id : patientIdAsString;
+  };
+
   const [formData, setFormData] = useState({
     patient_id: '',
     patient_name: '',
@@ -44,11 +66,11 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
   useEffect(() => {
     if (session) {
       setFormData({
-        patient_id: session.patient_id || '',
+        patient_id: session.patient_id != null ? String(session.patient_id) : '',
         patient_name: session.patient_name || '',
-        date: session.date || '',
-        start_time: session.start_time || '',
-        end_time: session.end_time || '',
+        date: normalizeDateForInput(session.date),
+        start_time: normalizeTimeForInput(session.start_time),
+        end_time: normalizeTimeForInput(session.end_time),
         duration_minutes: session.duration_minutes || 50,
         session_type: session.session_type || 'individual',
         status: session.status || 'agendada',
@@ -77,10 +99,10 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
   }, [session, open]);
 
   const handlePatientChange = (patientId) => {
-    const patient = patients.find(p => p.id === patientId);
+    const patient = (patients || []).find((p) => String(p.id) === String(patientId));
     setFormData(prev => ({
       ...prev,
-      patient_id: patientId,
+      patient_id: String(patientId),
       patient_name: patient?.full_name || '',
     }));
   };
@@ -131,14 +153,22 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+
+    const dataToSave = {
+      ...formData,
+      patient_id: getPatientIdForSave(formData.patient_id),
+    };
     
     if (isRecurring && !session) {
       const sessions = generateRecurringSessions();
       for (const sess of sessions) {
-        await onSave(sess);
+        await onSave({
+          ...sess,
+          patient_id: getPatientIdForSave(sess.patient_id),
+        });
       }
     } else {
-      await onSave(formData);
+      await onSave(dataToSave);
     }
     
     setLoading(false);
@@ -146,7 +176,7 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">
             {session ? 'Editar Sessão' : 'Nova Sessão'}
@@ -164,8 +194,8 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
                 <SelectValue placeholder="Selecione o paciente" />
               </SelectTrigger>
               <SelectContent>
-                {patients.map(patient => (
-                  <SelectItem key={patient.id} value={patient.id}>
+                {(patients || []).map(patient => (
+                  <SelectItem key={patient.id} value={String(patient.id)}>
                     {patient.full_name}
                   </SelectItem>
                 ))}
@@ -246,7 +276,7 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
                 id="price"
                 type="number"
                 value={formData.price}
-                onChange={(e) => setFormData(prev => ({ ...prev, price: Number(e.target.value) }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
                 className="mt-1.5"
               />
             </div>

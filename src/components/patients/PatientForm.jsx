@@ -14,12 +14,21 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
+  DialogTitle, 
 } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Loader2 } from 'lucide-react';
 
 export default function PatientForm({ patient, open, onClose, onSave }) {
+  const normalizeDateForInput = (value) => {
+    if (!value) return '';
+    if (value instanceof Date) return value.toISOString().slice(0, 10);
+    const str = String(value);
+    // Handles ISO strings like 2026-02-20T00:00:00.000Z
+    if (str.includes('T')) return str.slice(0, 10);
+    return str;
+  };
+
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -59,7 +68,7 @@ export default function PatientForm({ patient, open, onClose, onSave }) {
         full_name: patient.full_name || '',
         email: patient.email || '',
         phone: patient.phone || '',
-        birth_date: patient.birth_date || '',
+        birth_date: normalizeDateForInput(patient.birth_date),
         cpf: patient.cpf || '',
         gender: patient.gender || '',
         address: patient.address || '',
@@ -143,13 +152,12 @@ export default function PatientForm({ patient, open, onClose, onSave }) {
               </div>
 
               <div>
-                <Label htmlFor="email">E-mail *</Label>
+                <Label htmlFor="email">E-mail</Label>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
-                  required
                   className="mt-1.5"
                 />
               </div>
@@ -167,12 +175,13 @@ export default function PatientForm({ patient, open, onClose, onSave }) {
               </div>
 
               <div>
-                <Label htmlFor="birth_date">Data de Nascimento</Label>
+                <Label htmlFor="birth_date">Data de Nascimento *</Label>
                 <Input
                   id="birth_date"
                   type="date"
                   value={formData.birth_date}
                   onChange={(e) => handleChange('birth_date', e.target.value)}
+                  required
                   className="mt-1.5"
                 />
               </div>
