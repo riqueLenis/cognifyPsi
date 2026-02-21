@@ -108,6 +108,10 @@ export default function Schedule() {
       ? await updateMutation.mutateAsync({ id: editingSession.id, data })
       : await createMutation.mutateAsync(data);
 
+    if (saved?.id) {
+      syncedSessionIdsRef.current.add(saved.id);
+    }
+
     try {
       await ensureFinancialForSession(base44, saved);
       queryClient.invalidateQueries({ queryKey: ['financials'] });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,6 +21,8 @@ import { Switch } from '@/components/ui/switch';
 import { addWeeks, addMonths, format } from 'date-fns';
 
 export default function SessionForm({ session, patients, open, onClose, onSave }) {
+  const submittingRef = useRef(false);
+
   const parseDateOnlyAsLocalDate = (yyyyMmDd) => {
     if (!yyyyMmDd) return new Date();
     const str = String(yyyyMmDd);
@@ -161,26 +163,31 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setLoading(true);
 
-    const dataToSave = {
-      ...formData,
-      patient_id: getPatientIdForSave(formData.patient_id),
-    };
-    
-    if (isRecurring && !session) {
-      const sessions = generateRecurringSessions();
-      for (const sess of sessions) {
-        await onSave({
-          ...sess,
-          patient_id: getPatientIdForSave(sess.patient_id),
-        });
+    try {
+      const dataToSave = {
+        ...formData,
+        patient_id: getPatientIdForSave(formData.patient_id),
+      };
+      
+      if (isRecurring && !session) {
+        const sessions = generateRecurringSessions();
+        for (const sess of sessions) {
+          await onSave({
+            ...sess,
+            patient_id: getPatientIdForSave(sess.patient_id),
+          });
+        }
+      } else {
+        await onSave(dataToSave);
       }
-    } else {
-      await onSave(dataToSave);
+    } finally {
+      setLoading(false);
+      submittingRef.current = false;
     }
-    
-    setLoading(false);
   };
 
   return (
