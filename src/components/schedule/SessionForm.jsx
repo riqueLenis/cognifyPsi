@@ -21,6 +21,15 @@ import { Switch } from '@/components/ui/switch';
 import { addWeeks, addMonths, format } from 'date-fns';
 
 export default function SessionForm({ session, patients, open, onClose, onSave }) {
+  const parseDateOnlyAsLocalDate = (yyyyMmDd) => {
+    if (!yyyyMmDd) return new Date();
+    const str = String(yyyyMmDd);
+    const [y, m, d] = str.split('-').map(Number);
+    if (!y || !m || !d) return new Date(str);
+    // Important: use local date to avoid timezone shifting (e.g., Sunday instead of Monday)
+    return new Date(y, m - 1, d);
+  };
+
   const normalizeDateForInput = (value) => {
     if (!value) return '';
     if (value instanceof Date) return format(value, 'yyyy-MM-dd');
@@ -123,7 +132,7 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
 
   const generateRecurringSessions = () => {
     const sessions = [];
-    let currentDate = new Date(formData.date);
+    let currentDate = parseDateOnlyAsLocalDate(formData.date);
     
     for (let i = 0; i < recurrence.count; i++) {
       sessions.push({
