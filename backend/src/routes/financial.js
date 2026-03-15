@@ -23,6 +23,13 @@ const normalize = (obj) => {
   };
 };
 
+const normalizeDateStr = (value) => {
+  if (!value) return '';
+  const raw = String(value);
+  const s = raw.includes('T') ? raw.slice(0, 10) : raw;
+  return s;
+};
+
 // Prevent duplicate FinancialTransaction rows for the same (ownerId, session_id)
 // under concurrent requests (e.g., recurring session creation).
 const sessionIdLocks = new Map();
@@ -71,6 +78,42 @@ router.post('/bulk-delete-all', async (req, res, next) => {
     const result = await prisma.financialTransaction.deleteMany({
       where: { ownerId },
     });
+    return res.json({ ok: true, deleted: result.count });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.post('/bulk-delete-from-date', async (req, res, next) => {
+  try {
+    const ownerId = getOwnerId(req);
+    const { from_date } = req.body || {};
+    if (!from_date) return res.status(400).json({ error: 'from_date_required' });
+    const fromStr = normalizeDateStr(from_date);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fromStr)) {
+      return res.status(400).json({ error: 'from_date_invalid' });
+    }
+
+    const rows = await prisma.financialTransaction.findMany({
+      where: { ownerId },
+      select: { id: true, data: true },
+    });
+
+    const ids = [];
+    for (const row of rows) {
+      const obj = safeParse(row.data) || {};
+      const due = normalizeDateStr(obj.due_date);
+      if (!due) continue;
+      // yyyy-mm-dd string compare
+      if (due >= fromStr) ids.push(row.id);
+    }
+
+    if (!ids.length) return res.json({ ok: true, deleted: 0 });
+
+    const result = await prisma.financialTransaction.deleteMany({
+      where: { ownerId, id: { in: ids } },
+    });
+
     return res.json({ ok: true, deleted: result.count });
   } catch (err) {
     return next(err);

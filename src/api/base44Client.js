@@ -293,6 +293,14 @@ export const base44 = {
           path: "/financial/bulk-delete-all",
         });
       },
+      /** @param {{ from_date: string }} args */
+      bulkDeleteFromDate(args) {
+        return request({
+          method: "POST",
+          path: "/financial/bulk-delete-from-date",
+          body: args,
+        });
+      },
     },
     ClinicSettings: {
       list: async () => request({ method: "GET", path: "/clinic-settings" }),

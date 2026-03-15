@@ -14,8 +14,15 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -80,6 +87,8 @@ export default function Financial() {
 
   const [showForm, setShowForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [bulkDeleteFromDate, setBulkDeleteFromDate] = useState("");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -136,6 +145,20 @@ export default function Financial() {
     },
     onError: (err) => {
       toast.error(err?.data?.error || err?.message || "Falha ao apagar financeiro");
+    },
+  });
+
+  const bulkDeleteFromDateMutation = useMutation({
+    mutationFn: (args) => base44.entities.Financial.bulkDeleteFromDate(args),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["financials"] });
+      setShowBulkDelete(false);
+      toast.success(`Financeiro apagado (${res?.deleted ?? 0})`);
+    },
+    onError: (err) => {
+      toast.error(
+        err?.data?.error || err?.message || "Falha ao apagar financeiro",
+      );
     },
   });
 
@@ -274,13 +297,15 @@ export default function Financial() {
           <Button
             variant="destructive"
             onClick={() => {
-              const ok = window.confirm(
-                "Apagar TODO o financeiro? Isso exclui todas as transações e não pode ser desfeito.",
-              );
-              if (!ok) return;
-              bulkDeleteAllMutation.mutate();
+              // Prefill with selected month start when possible.
+              try {
+                setBulkDeleteFromDate(format(monthStart, "yyyy-MM-dd"));
+              } catch {
+                setBulkDeleteFromDate("");
+              }
+              setShowBulkDelete(true);
             }}
-            disabled={bulkDeleteAllMutation.isPending}
+            disabled={bulkDeleteAllMutation.isPending || bulkDeleteFromDateMutation.isPending}
           >
             <Trash2 className="w-4 h-4 mr-2" />
             Apagar tudo
@@ -298,6 +323,56 @@ export default function Financial() {
           </Button>
         </div>
       </div>
+
+      <Dialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Apagar financeiro por data</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              Selecione a data. Serão excluídas todas as transações com vencimento a partir desta data.
+            </p>
+
+            <div>
+              <Label htmlFor="bulk_delete_from_date">A partir de</Label>
+              <Input
+                id="bulk_delete_from_date"
+                type="date"
+                value={bulkDeleteFromDate}
+                onChange={(e) => setBulkDeleteFromDate(e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowBulkDelete(false)}
+                disabled={bulkDeleteFromDateMutation.isPending}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  const ok = window.confirm(
+                    `Apagar todas as transações com vencimento a partir de ${bulkDeleteFromDate}? Esta ação não pode ser desfeita.`,
+                  );
+                  if (!ok) return;
+                  bulkDeleteFromDateMutation.mutate({
+                    from_date: bulkDeleteFromDate,
+                  });
+                }}
+                disabled={bulkDeleteFromDateMutation.isPending || !bulkDeleteFromDate}
+              >
+                Confirmar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
