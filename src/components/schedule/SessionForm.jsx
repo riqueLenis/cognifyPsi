@@ -1,48 +1,68 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import React, { useState, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Loader2, Repeat, CalendarDays } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
-import { addWeeks, addMonths, format } from 'date-fns';
+} from "@/components/ui/dialog";
+import { Loader2, Repeat, CalendarDays } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { addWeeks, addMonths, format } from "date-fns";
 
-export default function SessionForm({ session, patients, open, onClose, onSave }) {
+export default function SessionForm({
+  session,
+  patients,
+  defaultDate,
+  open,
+  onClose,
+  onSave,
+}) {
   const submittingRef = useRef(false);
+
+  const getAnnualSessionCount = (frequency) => {
+    switch (frequency) {
+      case "semanal":
+        return 52;
+      case "quinzenal":
+        return 26;
+      case "mensal":
+        return 12;
+      default:
+        return 52;
+    }
+  };
 
   const parseDateOnlyAsLocalDate = (yyyyMmDd) => {
     if (!yyyyMmDd) return new Date();
     const str = String(yyyyMmDd);
-    const [y, m, d] = str.split('-').map(Number);
+    const [y, m, d] = str.split("-").map(Number);
     if (!y || !m || !d) return new Date(str);
     // Important: use local date to avoid timezone shifting (e.g., Sunday instead of Monday)
     return new Date(y, m - 1, d);
   };
 
   const normalizeDateForInput = (value) => {
-    if (!value) return '';
-    if (value instanceof Date) return format(value, 'yyyy-MM-dd');
+    if (!value) return "";
+    if (value instanceof Date) return format(value, "yyyy-MM-dd");
     const str = String(value);
     // Handles ISO strings like 2026-02-20T00:00:00.000Z
-    if (str.includes('T')) return str.slice(0, 10);
+    if (str.includes("T")) return str.slice(0, 10);
     return str;
   };
 
   const normalizeTimeForInput = (value) => {
-    if (!value) return '';
+    if (!value) return "";
     const str = String(value);
     // Handles HH:mm:ss -> HH:mm
     if (/^\d{2}:\d{2}:\d{2}/.test(str)) return str.slice(0, 5);
@@ -50,82 +70,98 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
   };
 
   const getPatientIdForSave = (patientIdAsString) => {
-    const matched = (patients || []).find((p) => String(p.id) === String(patientIdAsString));
+    const matched = (patients || []).find(
+      (p) => String(p.id) === String(patientIdAsString),
+    );
     return matched ? matched.id : patientIdAsString;
   };
 
   const [formData, setFormData] = useState({
-    patient_id: '',
-    patient_name: '',
-    date: '',
-    start_time: '',
-    end_time: '',
+    patient_id: "",
+    patient_name: "",
+    date: "",
+    start_time: "",
+    end_time: "",
     duration_minutes: 50,
-    session_type: 'individual',
-    status: 'agendada',
-    notes: '',
-    price: '',
-    payment_status: 'pendente',
+    session_type: "individual",
+    status: "agendada",
+    notes: "",
+    price: "",
+    payment_status: "pendente",
   });
   const [loading, setLoading] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrence, setRecurrence] = useState({
-    frequency: 'semanal',
+    frequency: "semanal",
     count: 4,
+    countMode: "fixed",
   });
 
   useEffect(() => {
     if (session) {
       setFormData({
-        patient_id: session.patient_id != null ? String(session.patient_id) : '',
-        patient_name: session.patient_name || '',
+        patient_id:
+          session.patient_id != null ? String(session.patient_id) : "",
+        patient_name: session.patient_name || "",
         date: normalizeDateForInput(session.date),
         start_time: normalizeTimeForInput(session.start_time),
         end_time: normalizeTimeForInput(session.end_time),
         duration_minutes: session.duration_minutes || 50,
-        session_type: session.session_type || 'individual',
-        status: session.status || 'agendada',
-        notes: session.notes || '',
-        price: session.price || '',
-        payment_status: session.payment_status || 'pendente',
+        session_type: session.session_type || "individual",
+        status: session.status || "agendada",
+        notes: session.notes || "",
+        price: session.price || "",
+        payment_status: session.payment_status || "pendente",
       });
       setIsRecurring(false);
     } else {
       setFormData({
-        patient_id: '',
-        patient_name: '',
-        date: format(new Date(), 'yyyy-MM-dd'),
-        start_time: '',
-        end_time: '',
+        patient_id: "",
+        patient_name: "",
+        date: defaultDate ? normalizeDateForInput(defaultDate) : format(new Date(), "yyyy-MM-dd"),
+        start_time: "",
+        end_time: "",
         duration_minutes: 50,
-        session_type: 'individual',
-        status: 'agendada',
-        notes: '',
-        price: '',
-        payment_status: 'pendente',
+        session_type: "individual",
+        status: "agendada",
+        notes: "",
+        price: "",
+        payment_status: "pendente",
       });
       setIsRecurring(false);
-      setRecurrence({ frequency: 'semanal', count: 4 });
+      setRecurrence({ frequency: "semanal", count: 4, countMode: "fixed" });
     }
-  }, [session, open]);
+  }, [session, open, defaultDate]);
+
+  useEffect(() => {
+    if (!isRecurring) return;
+    if (recurrence.countMode !== "annual") return;
+    setRecurrence((prev) => ({
+      ...prev,
+      count: getAnnualSessionCount(prev.frequency),
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recurrence.frequency, isRecurring]);
 
   const handlePatientChange = (patientId) => {
-    const patient = (patients || []).find((p) => String(p.id) === String(patientId));
-    setFormData(prev => ({
+    const patient = (patients || []).find(
+      (p) => String(p.id) === String(patientId),
+    );
+    setFormData((prev) => ({
       ...prev,
       patient_id: String(patientId),
-      patient_name: patient?.full_name || '',
+      patient_name: patient?.full_name || "",
     }));
   };
 
   const handleTimeChange = (startTime) => {
-    const [hours, minutes] = startTime.split(':').map(Number);
+    const [hours, minutes] = startTime.split(":").map(Number);
     const endDate = new Date();
     endDate.setHours(hours);
     endDate.setMinutes(minutes + formData.duration_minutes);
-    const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
-    
-    setFormData(prev => ({
+    const endTime = `${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`;
+
+    setFormData((prev) => ({
       ...prev,
       start_time: startTime,
       end_time: endTime,
@@ -135,29 +171,36 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
   const generateRecurringSessions = () => {
     const sessions = [];
     let currentDate = parseDateOnlyAsLocalDate(formData.date);
-    
-    for (let i = 0; i < recurrence.count; i++) {
+
+    const batchRecurrenceId = `rec_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+    const effectiveCount =
+      recurrence.countMode === "annual"
+        ? getAnnualSessionCount(recurrence.frequency)
+        : recurrence.count;
+
+    for (let i = 0; i < effectiveCount; i++) {
       sessions.push({
         ...formData,
-        date: format(currentDate, 'yyyy-MM-dd'),
-        recurrence_id: `rec_${Date.now()}`,
+        date: format(currentDate, "yyyy-MM-dd"),
+        recurrence_id: batchRecurrenceId,
       });
-      
+
       switch (recurrence.frequency) {
-        case 'semanal':
+        case "semanal":
           currentDate = addWeeks(currentDate, 1);
           break;
-        case 'quinzenal':
+        case "quinzenal":
           currentDate = addWeeks(currentDate, 2);
           break;
-        case 'mensal':
+        case "mensal":
           currentDate = addMonths(currentDate, 1);
           break;
         default:
           currentDate = addWeeks(currentDate, 1);
       }
     }
-    
+
     return sessions;
   };
 
@@ -172,7 +215,7 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
         ...formData,
         patient_id: getPatientIdForSave(formData.patient_id),
       };
-      
+
       if (isRecurring && !session) {
         const sessions = generateRecurringSessions();
         for (const sess of sessions) {
@@ -195,22 +238,22 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">
-            {session ? 'Editar Sessão' : 'Nova Sessão'}
+            {session ? "Editar Sessão" : "Nova Sessão"}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5 mt-4">
           <div>
             <Label htmlFor="patient">Paciente *</Label>
-            <Select 
-              value={formData.patient_id} 
+            <Select
+              value={formData.patient_id}
               onValueChange={handlePatientChange}
             >
               <SelectTrigger className="mt-1.5">
                 <SelectValue placeholder="Selecione o paciente" />
               </SelectTrigger>
               <SelectContent>
-                {(patients || []).map(patient => (
+                {(patients || []).map((patient) => (
                   <SelectItem key={patient.id} value={String(patient.id)}>
                     {patient.full_name}
                   </SelectItem>
@@ -226,7 +269,9 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
                 id="date"
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, date: e.target.value }))
+                }
                 required
                 className="mt-1.5"
               />
@@ -248,9 +293,11 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="session_type">Tipo de Sessão</Label>
-              <Select 
-                value={formData.session_type} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, session_type: value }))}
+              <Select
+                value={formData.session_type}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, session_type: value }))
+                }
               >
                 <SelectTrigger className="mt-1.5">
                   <SelectValue />
@@ -267,9 +314,14 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
 
             <div>
               <Label htmlFor="duration">Duração (min)</Label>
-              <Select 
-                value={String(formData.duration_minutes)} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, duration_minutes: Number(value) }))}
+              <Select
+                value={String(formData.duration_minutes)}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    duration_minutes: Number(value),
+                  }))
+                }
               >
                 <SelectTrigger className="mt-1.5">
                   <SelectValue />
@@ -292,16 +344,20 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
                 id="price"
                 type="number"
                 value={formData.price}
-                onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, price: e.target.value }))
+                }
                 className="mt-1.5"
               />
             </div>
 
             <div>
               <Label htmlFor="payment_status">Pagamento</Label>
-              <Select 
-                value={formData.payment_status} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, payment_status: value }))}
+              <Select
+                value={formData.payment_status}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, payment_status: value }))
+                }
               >
                 <SelectTrigger className="mt-1.5">
                   <SelectValue />
@@ -321,7 +377,9 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
             <Textarea
               id="notes"
               value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, notes: e.target.value }))
+              }
               rows={3}
               className="mt-1.5"
             />
@@ -333,7 +391,9 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Repeat className="w-4 h-4 text-indigo-600" />
-                  <Label className="text-indigo-700 font-medium">Sessão Recorrente</Label>
+                  <Label className="text-indigo-700 font-medium">
+                    Sessão Recorrente
+                  </Label>
                 </div>
                 <Switch
                   checked={isRecurring}
@@ -345,9 +405,17 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
                 <div className="grid grid-cols-2 gap-4 pt-2">
                   <div>
                     <Label htmlFor="frequency">Frequência</Label>
-                    <Select 
-                      value={recurrence.frequency} 
-                      onValueChange={(value) => setRecurrence(prev => ({ ...prev, frequency: value }))}
+                    <Select
+                      value={recurrence.frequency}
+                      onValueChange={(value) =>
+                        setRecurrence((prev) => {
+                          const next = { ...prev, frequency: value };
+                          if (next.countMode === "annual") {
+                            next.count = getAnnualSessionCount(value);
+                          }
+                          return next;
+                        })
+                      }
                     >
                       <SelectTrigger className="mt-1.5 bg-white">
                         <SelectValue />
@@ -362,14 +430,37 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
 
                   <div>
                     <Label htmlFor="count">Quantidade de sessões</Label>
-                    <Select 
-                      value={String(recurrence.count)} 
-                      onValueChange={(value) => setRecurrence(prev => ({ ...prev, count: Number(value) }))}
+                    <Select
+                      value={
+                        recurrence.countMode === "annual"
+                          ? "anual"
+                          : String(recurrence.count)
+                      }
+                      onValueChange={(value) =>
+                        setRecurrence((prev) => {
+                          if (value === "anual") {
+                            return {
+                              ...prev,
+                              countMode: "annual",
+                              count: getAnnualSessionCount(prev.frequency),
+                            };
+                          }
+                          return {
+                            ...prev,
+                            countMode: "fixed",
+                            count: Number(value),
+                          };
+                        })
+                      }
                     >
                       <SelectTrigger className="mt-1.5 bg-white">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="anual">
+                          Anual ({getAnnualSessionCount(recurrence.frequency)}{" "}
+                          sessões)
+                        </SelectItem>
                         <SelectItem value="4">4 sessões</SelectItem>
                         <SelectItem value="8">8 sessões</SelectItem>
                         <SelectItem value="12">12 sessões</SelectItem>
@@ -382,7 +473,17 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
                   <div className="col-span-2 text-sm text-indigo-600 flex items-center gap-2">
                     <CalendarDays className="w-4 h-4" />
                     <span>
-                      Serão criadas {recurrence.count} sessões ({recurrence.frequency === 'semanal' ? 'toda semana' : recurrence.frequency === 'quinzenal' ? 'a cada 2 semanas' : 'todo mês'})
+                      Serão criadas{" "}
+                      {recurrence.countMode === "annual"
+                        ? getAnnualSessionCount(recurrence.frequency)
+                        : recurrence.count}{" "}
+                      sessões (
+                      {recurrence.frequency === "semanal"
+                        ? "toda semana"
+                        : recurrence.frequency === "quinzenal"
+                          ? "a cada 2 semanas"
+                          : "todo mês"}
+                      )
                     </span>
                   </div>
                 </div>
@@ -394,13 +495,13 @@ export default function SessionForm({ session, patients, open, onClose, onSave }
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={loading || !formData.patient_id}
               className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600"
             >
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {session ? 'Salvar Alterações' : 'Agendar Sessão'}
+              {session ? "Salvar Alterações" : "Agendar Sessão"}
             </Button>
           </div>
         </form>

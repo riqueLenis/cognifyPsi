@@ -257,7 +257,25 @@ export const base44 = {
   },
   entities: {
     Patient: makeEntity("patients"),
-    Session: makeEntity("sessions"),
+    Session: {
+      ...makeEntity("sessions"),
+      /** @param {{ patient_id: string, from_date: string, new_date: string }} args */
+      bulkReschedule(args) {
+        return request({
+          method: "POST",
+          path: "/sessions/bulk-reschedule",
+          body: args,
+        });
+      },
+      /** @param {{ patient_id: string }} args */
+      bulkDelete(args) {
+        return request({
+          method: "POST",
+          path: "/sessions/bulk-delete",
+          body: args,
+        });
+      },
+    },
     MedicalRecord: makeEntity("medical-records"),
     Financial: makeEntity("financial"),
     ClinicSettings: {

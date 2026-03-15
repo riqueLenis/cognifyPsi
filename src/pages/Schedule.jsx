@@ -35,6 +35,7 @@ export default function Schedule() {
   const [showForm, setShowForm] = useState(false);
   const [editingSession, setEditingSession] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [newSessionDefaultDate, setNewSessionDefaultDate] = useState('');
 
   const queryClient = useQueryClient();
 
@@ -49,6 +50,14 @@ export default function Schedule() {
     queryKey: ['sessions'],
     queryFn: () => base44.entities.Session.list('-date'),
   });
+
+  const getPatientNameForNotification = (sess) => {
+    if (sess?.patient_name) return String(sess.patient_name);
+    const match = (patients || []).find(
+      (p) => String(p?.id) === String(sess?.patient_id),
+    );
+    return match?.full_name || 'paciente';
+  };
 
   // Backfill: garante que sessões antigas gerem lançamentos no Financeiro.
   useEffect(() => {
@@ -123,10 +132,22 @@ export default function Schedule() {
   };
 
   const handleStatusChange = async (session, newStatus) => {
-    await updateMutation.mutateAsync({
+    const previousStatus = session?.status;
+    const updated = await updateMutation.mutateAsync({
       id: session.id,
       data: { ...session, status: newStatus }
     });
+
+    const changed = previousStatus !== newStatus;
+    if (changed && (newStatus === 'confirmada' || newStatus === 'concluida')) {
+      const patientName = getPatientNameForNotification(session);
+      const statusLabel = newStatus === 'confirmada' ? 'confirmada' : 'concluída';
+      toast.message(
+        `Sessão ${statusLabel}. Agora preencha o prontuário do paciente ${patientName}.`,
+      );
+    }
+
+    return updated;
   };
 
   const handleEdit = (session) => {
@@ -222,7 +243,11 @@ export default function Schedule() {
           </Select>
 
           <Button 
-            onClick={() => { setEditingSession(null); setShowForm(true); }}
+            onClick={() => {
+              setEditingSession(null);
+              setNewSessionDefaultDate(format(selectedDate, 'yyyy-MM-dd'));
+              setShowForm(true);
+            }}
             className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -302,7 +327,11 @@ export default function Schedule() {
               <Button 
                 variant="outline" 
                 className="mt-4"
-                onClick={() => { setEditingSession(null); setShowForm(true); }}
+                onClick={() => {
+                  setEditingSession(null);
+                  setNewSessionDefaultDate(format(selectedDate, 'yyyy-MM-dd'));
+                  setShowForm(true);
+                }}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Agendar Sessão
@@ -328,6 +357,7 @@ export default function Schedule() {
       <SessionForm
         session={editingSession}
         patients={patients}
+        defaultDate={!editingSession ? newSessionDefaultDate : undefined}
         open={showForm}
         onClose={() => { setShowForm(false); setEditingSession(null); }}
         onSave={handleSave}

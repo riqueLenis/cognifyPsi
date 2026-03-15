@@ -23,6 +23,26 @@ const normalize = (obj) => {
   };
 };
 
+// Prevent duplicate FinancialTransaction rows for the same (ownerId, session_id)
+// under concurrent requests (e.g., recurring session creation).
+const sessionIdLocks = new Map();
+
+const withSessionIdLock = async (lockKey, fn) => {
+  const existing = sessionIdLocks.get(lockKey);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    try {
+      return await fn();
+    } finally {
+      sessionIdLocks.delete(lockKey);
+    }
+  })();
+
+  sessionIdLocks.set(lockKey, promise);
+  return promise;
+};
+
 router.get('/', async (req, res, next) => {
   try {
     const ownerId = getOwnerId(req);
@@ -54,7 +74,54 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ error: 'amount_required' });
     }
 
-    const created = await prisma.financialTransaction.create({ data: { ownerId, data: JSON.stringify(body) } });
+    const sessionId = body.session_id ? String(body.session_id) : '';
+    if (sessionId) {
+      const lockKey = `${ownerId}:${sessionId}`;
+      const result = await withSessionIdLock(lockKey, async () => {
+        const rows = await prisma.financialTransaction.findMany({
+          where: { ownerId },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        const matches = [];
+        for (const row of rows) {
+          const parsed = safeParse(row.data) || {};
+          if (String(parsed.session_id || '') === sessionId) {
+            matches.push({ row, parsed });
+          }
+        }
+
+        if (matches.length) {
+          const [keep, ...dups] = matches;
+          // Merge to keep the transaction up to date (but preserve created_date).
+          const merged = normalize({ ...keep.parsed, ...body, created_date: keep.parsed.created_date });
+
+          await prisma.financialTransaction.update({
+            where: { id: keep.row.id },
+            data: { data: JSON.stringify(merged) },
+          });
+
+          if (dups.length) {
+            await prisma.financialTransaction.deleteMany({
+              where: { ownerId, id: { in: dups.map((d) => d.row.id) } },
+            });
+          }
+
+          return { status: 200, payload: { id: keep.row.id, ...merged } };
+        }
+
+        const created = await prisma.financialTransaction.create({
+          data: { ownerId, data: JSON.stringify(body) },
+        });
+        return { status: 201, payload: { id: created.id, ...body } };
+      });
+
+      return res.status(result.status).json(result.payload);
+    }
+
+    const created = await prisma.financialTransaction.create({
+      data: { ownerId, data: JSON.stringify(body) },
+    });
     return res.status(201).json({ id: created.id, ...body });
   } catch (err) {
     return next(err);

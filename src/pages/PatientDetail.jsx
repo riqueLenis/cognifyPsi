@@ -20,6 +20,25 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -36,6 +55,10 @@ export default function PatientDetail() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [showSessionForm, setShowSessionForm] = useState(false);
   const [showRecordForm, setShowRecordForm] = useState(false);
+
+  const [showBulkReschedule, setShowBulkReschedule] = useState(false);
+  const [bulkFromDate, setBulkFromDate] = useState('');
+  const [bulkNewDate, setBulkNewDate] = useState('');
 
   const queryClient = useQueryClient();
 
@@ -83,7 +106,33 @@ export default function PatientDetail() {
     mutationFn: (data) => base44.entities.Session.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['patient-sessions', patientId] });
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
       setShowSessionForm(false);
+    },
+  });
+
+  const bulkRescheduleMutation = useMutation({
+    mutationFn: (args) => base44.entities.Session.bulkReschedule(args),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['patient-sessions', patientId] });
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      setShowBulkReschedule(false);
+      toast.success(`Sessões futuras atualizadas (${res?.updated ?? 0})`);
+    },
+    onError: (err) => {
+      toast.error(err?.data?.error || err?.message || 'Falha ao remarcar sessões');
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (args) => base44.entities.Session.bulkDelete(args),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['patient-sessions', patientId] });
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      toast.success(`Sessões excluídas (${res?.deleted ?? 0})`);
+    },
+    onError: (err) => {
+      toast.error(err?.data?.error || err?.message || 'Falha ao excluir sessões');
     },
   });
 
@@ -119,6 +168,37 @@ export default function PatientDetail() {
   const completedSessions = sessions.filter(s => s.status === 'concluida').length;
   const totalPaid = financials.filter(f => f.status === 'pago').reduce((sum, f) => sum + (f.amount || 0), 0);
   const totalPending = financials.filter(f => f.status === 'pendente').reduce((sum, f) => sum + (f.amount || 0), 0);
+
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const upcomingDates = sessions
+    .map((s) => s?.date)
+    .filter(Boolean)
+    .filter((d) => String(d) >= todayStr)
+    .sort();
+  const defaultFromDate = upcomingDates[0] || todayStr;
+
+  const openBulkReschedule = () => {
+    setBulkFromDate(defaultFromDate);
+    setBulkNewDate(defaultFromDate);
+    setShowBulkReschedule(true);
+  };
+
+  const submitBulkReschedule = async () => {
+    if (!patientId) return;
+    if (!bulkFromDate || !bulkNewDate) {
+      toast.error('Preencha as duas datas');
+      return;
+    }
+    try {
+      await bulkRescheduleMutation.mutateAsync({
+        patient_id: patientId,
+        from_date: bulkFromDate,
+        new_date: bulkNewDate,
+      });
+    } catch {
+      // handled by onError
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -251,10 +331,53 @@ export default function PatientDetail() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Histórico de Sessões</CardTitle>
-              <Button onClick={() => setShowSessionForm(true)} size="sm">
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Sessão
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openBulkReschedule}
+                  disabled={sessions.length === 0}
+                >
+                  Remarcar futuras
+                </Button>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={sessions.length === 0 || bulkDeleteMutation.isPending}
+                    >
+                      Excluir todas
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir todas as sessões?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Isso remove todas as sessões deste paciente (de todos os meses). Esta ação não pode ser desfeita.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        disabled={bulkDeleteMutation.isPending}
+                        onClick={() => {
+                          if (!patientId) return;
+                          bulkDeleteMutation.mutate({ patient_id: patientId });
+                        }}
+                      >
+                        Confirmar exclusão
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+
+                <Button onClick={() => setShowSessionForm(true)} size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nova Sessão
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {sessions.length === 0 ? (
@@ -292,6 +415,60 @@ export default function PatientDetail() {
               )}
             </CardContent>
           </Card>
+
+          <Dialog open={showBulkReschedule} onOpenChange={setShowBulkReschedule}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Remarcar sessões futuras</DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600">
+                  Isso desloca todas as sessões do paciente a partir de uma data, mantendo os intervalos entre elas.
+                </p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="bulk_from_date">A partir de</Label>
+                    <Input
+                      id="bulk_from_date"
+                      type="date"
+                      value={bulkFromDate}
+                      onChange={(e) => setBulkFromDate(e.target.value)}
+                      className="mt-1.5"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="bulk_new_date">Nova data da 1ª sessão</Label>
+                    <Input
+                      id="bulk_new_date"
+                      type="date"
+                      value={bulkNewDate}
+                      onChange={(e) => setBulkNewDate(e.target.value)}
+                      className="mt-1.5"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowBulkReschedule(false)}
+                    disabled={bulkRescheduleMutation.isPending}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={submitBulkReschedule}
+                    disabled={bulkRescheduleMutation.isPending || !bulkFromDate || !bulkNewDate}
+                  >
+                    Aplicar
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="records">

@@ -45,7 +45,16 @@ export const mapSessionToFinancial = (session) => {
   };
 };
 
+// Single-flight per session to avoid duplicate creates under concurrent callers.
+const inflightBySessionId = new Map();
+
 export const ensureFinancialForSession = async (base44, session) => {
+  const sessionId = session?.id ? String(session.id) : '';
+  if (sessionId && inflightBySessionId.has(sessionId)) {
+    return inflightBySessionId.get(sessionId);
+  }
+
+  const run = async () => {
   if (!base44?.entities?.Financial)
     throw new Error("base44_missing_financial_entity");
   if (!session?.id) return null;
@@ -61,7 +70,19 @@ export const ensureFinancialForSession = async (base44, session) => {
   const existing = await base44.entities.Financial.filter({
     session_id: session.id,
   });
-  const current = Array.isArray(existing) ? existing[0] : null;
+
+  const existingArr = Array.isArray(existing) ? existing.filter(Boolean) : [];
+  const current = existingArr.length ? existingArr[0] : null;
+
+  // Cleanup duplicates defensively (keep the first).
+  if (existingArr.length > 1) {
+    const dups = existingArr.slice(1).filter((t) => t?.id);
+    try {
+      await Promise.all(dups.map((t) => base44.entities.Financial.delete(t.id)));
+    } catch {
+      // Best-effort cleanup only.
+    }
+  }
 
   if (current?.id) {
     // Preserva campos que podem ser editados manualmente no Financeiro.
@@ -107,4 +128,13 @@ export const ensureFinancialForSession = async (base44, session) => {
   }
 
   return base44.entities.Financial.create(desired);
+  };
+
+  if (!sessionId) return run();
+
+  const promise = run().finally(() => {
+    inflightBySessionId.delete(sessionId);
+  });
+  inflightBySessionId.set(sessionId, promise);
+  return promise;
 };
