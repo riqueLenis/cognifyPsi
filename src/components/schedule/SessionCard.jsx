@@ -30,6 +30,7 @@ export default function SessionCard({
   onStatusChange,
   onEdit,
   onDelete,
+  onDeleteFuture,
 }) {
   const statusConfig = {
     agendada: {
@@ -199,6 +200,22 @@ export default function SessionCard({
                   <Trash2 className="w-4 h-4 mr-2" />
                   Excluir sessão
                 </DropdownMenuItem>
+
+                {typeof onDeleteFuture === "function" && (
+                  <DropdownMenuItem
+                    className="text-red-600 focus:text-red-700"
+                    onClick={() => {
+                      const ok = window.confirm(
+                        "Excluir todas as sessões futuras deste paciente (mantendo esta sessão)? Esta ação não pode ser desfeita.",
+                      );
+                      if (!ok) return;
+                      onDeleteFuture(session);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Excluir sessões futuras
+                  </DropdownMenuItem>
+                )}
               </>
             )}
           </DropdownMenuContent>

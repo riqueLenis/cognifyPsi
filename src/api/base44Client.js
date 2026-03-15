@@ -275,9 +275,25 @@ export const base44 = {
           body: args,
         });
       },
+      /** @param {{ patient_id: string, from_date: string, from_start_time?: string }} args */
+      bulkDeleteFuture(args) {
+        return request({
+          method: "POST",
+          path: "/sessions/bulk-delete-future",
+          body: args,
+        });
+      },
     },
     MedicalRecord: makeEntity("medical-records"),
-    Financial: makeEntity("financial"),
+    Financial: {
+      ...makeEntity("financial"),
+      bulkDeleteAll() {
+        return request({
+          method: "POST",
+          path: "/financial/bulk-delete-all",
+        });
+      },
+    },
     ClinicSettings: {
       list: async () => request({ method: "GET", path: "/clinic-settings" }),
       create: async (data) =>

@@ -128,6 +128,17 @@ export default function Financial() {
     },
   });
 
+  const bulkDeleteAllMutation = useMutation({
+    mutationFn: () => base44.entities.Financial.bulkDeleteAll(),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["financials"] });
+      toast.success(`Financeiro apagado (${res?.deleted ?? 0})`);
+    },
+    onError: (err) => {
+      toast.error(err?.data?.error || err?.message || "Falha ao apagar financeiro");
+    },
+  });
+
   const handleSave = async (data) => {
     if (editingTransaction) {
       await updateMutation.mutateAsync({ id: editingTransaction.id, data });
@@ -259,16 +270,33 @@ export default function Financial() {
           onChange={(e) => setMonthFilter(e.target.value)}
           className="w-48"
         />
-        <Button
-          onClick={() => {
-            setEditingTransaction(null);
-            setShowForm(true);
-          }}
-          className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Transação
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="destructive"
+            onClick={() => {
+              const ok = window.confirm(
+                "Apagar TODO o financeiro? Isso exclui todas as transações e não pode ser desfeito.",
+              );
+              if (!ok) return;
+              bulkDeleteAllMutation.mutate();
+            }}
+            disabled={bulkDeleteAllMutation.isPending}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Apagar tudo
+          </Button>
+
+          <Button
+            onClick={() => {
+              setEditingTransaction(null);
+              setShowForm(true);
+            }}
+            className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Transação
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}

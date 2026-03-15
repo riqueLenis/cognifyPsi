@@ -65,6 +65,18 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+router.post('/bulk-delete-all', async (req, res, next) => {
+  try {
+    const ownerId = getOwnerId(req);
+    const result = await prisma.financialTransaction.deleteMany({
+      where: { ownerId },
+    });
+    return res.json({ ok: true, deleted: result.count });
+  } catch (err) {
+    return next(err);
+  }
+});
+
 router.post('/', async (req, res, next) => {
   try {
     const ownerId = getOwnerId(req);

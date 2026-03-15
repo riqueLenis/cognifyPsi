@@ -102,6 +102,20 @@ export default function Schedule() {
       toast.success('Sessão excluída com sucesso!');
     },
   });
+
+  const bulkDeleteFutureMutation = useMutation({
+    mutationFn: (args) => base44.entities.Session.bulkDeleteFuture(args),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['financials'] });
+      toast.success(
+        `Sessões futuras excluídas (${res?.deleted_sessions ?? 0}).`,
+      );
+    },
+    onError: (err) => {
+      toast.error(err?.data?.error || err?.message || 'Falha ao excluir futuras');
+    },
+  });
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Session.update(id, data),
     onSuccess: () => {
@@ -167,6 +181,19 @@ export default function Schedule() {
     }
 
     await deleteMutation.mutateAsync(session.id);
+  };
+
+  const handleDeleteFuture = async (session) => {
+    if (!session?.patient_id || !session?.date) return;
+    try {
+      await bulkDeleteFutureMutation.mutateAsync({
+        patient_id: String(session.patient_id),
+        from_date: String(session.date),
+        from_start_time: session.start_time ? String(session.start_time) : undefined,
+      });
+    } catch {
+      // handled by onError
+    }
   };
 
   // Get week days
@@ -346,6 +373,7 @@ export default function Schedule() {
                   onStatusChange={handleStatusChange}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
+                  onDeleteFuture={handleDeleteFuture}
                 />
               ))}
             </div>

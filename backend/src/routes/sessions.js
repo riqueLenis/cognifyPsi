@@ -47,6 +47,12 @@ const chunk = (arr, size) => {
   return out;
 };
 
+const normalizeDateStr = (value) => {
+  if (!value) return "";
+  const raw = String(value);
+  return raw.includes("T") ? raw.slice(0, 10) : raw;
+};
+
 router.get("/", async (req, res, next) => {
   try {
     const ownerId = getOwnerId(req);
@@ -173,6 +179,92 @@ router.post("/bulk-delete", async (req, res, next) => {
     });
 
     return res.json({ ok: true, deleted: result.count });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.post("/bulk-delete-future", async (req, res, next) => {
+  try {
+    const ownerId = getOwnerId(req);
+    const { patient_id, from_date, from_start_time } = req.body || {};
+    if (!patient_id)
+      return res.status(400).json({ error: "patient_id_required" });
+    if (!from_date)
+      return res.status(400).json({ error: "from_date_required" });
+
+    const fromDateStr = normalizeDateStr(from_date);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fromDateStr)) {
+      return res.status(400).json({ error: "from_date_invalid" });
+    }
+
+    const fromTimeStr = from_start_time ? String(from_start_time) : "";
+
+    const rows = await prisma.session.findMany({
+      where: { ownerId },
+      select: { id: true, data: true },
+    });
+
+    const sessionIdsToDelete = [];
+    for (const row of rows) {
+      const obj = safeParse(row.data) || {};
+      if (String(obj.patient_id) !== String(patient_id)) continue;
+      const dateStr = normalizeDateStr(obj.date);
+      if (!dateStr) continue;
+
+      const isAfterDate = dateStr > fromDateStr;
+      const isSameDate = dateStr === fromDateStr;
+
+      // "Futuras": por padrão, não inclui a sessão atual; se vier from_start_time,
+      // só remove as sessões do mesmo dia com start_time maior.
+      let isFuture = false;
+      if (isAfterDate) isFuture = true;
+      else if (isSameDate && fromTimeStr) {
+        const start = obj.start_time ? String(obj.start_time) : "";
+        if (start && start > fromTimeStr) isFuture = true;
+      }
+
+      if (!isFuture) continue;
+      sessionIdsToDelete.push(row.id);
+    }
+
+    if (!sessionIdsToDelete.length) {
+      return res.json({ ok: true, deleted_sessions: 0, deleted_financial: 0 });
+    }
+
+    const deletedSessions = await prisma.session.deleteMany({
+      where: { ownerId, id: { in: sessionIdsToDelete } },
+    });
+
+    // Remove linked financial transactions for deleted sessions.
+    const finRows = await prisma.financialTransaction.findMany({
+      where: { ownerId },
+      select: { id: true, data: true },
+    });
+
+    const finIds = [];
+    const sessionIdSet = new Set(sessionIdsToDelete.map(String));
+    for (const row of finRows) {
+      const obj = safeParse(row.data) || {};
+      const sid = obj.session_id ? String(obj.session_id) : "";
+      if (!sid) continue;
+      if (!sessionIdSet.has(sid)) continue;
+      finIds.push(row.id);
+    }
+
+    let deletedFinancialCount = 0;
+    if (finIds.length) {
+      const deletedFin = await prisma.financialTransaction.deleteMany({
+        where: { ownerId, id: { in: finIds } },
+      });
+      deletedFinancialCount = deletedFin.count;
+    }
+
+    return res.json({
+      ok: true,
+      deleted_sessions: deletedSessions.count,
+      deleted_financial: deletedFinancialCount,
+    });
   } catch (err) {
     return next(err);
   }
